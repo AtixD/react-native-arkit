@@ -17,6 +17,7 @@
 
 @property (nonatomic, strong) ARSession* session;
 @property (nonatomic, strong) ARWorldTrackingConfiguration *configuration;
+@property (nonatomic, strong) SCNAction *imageHighlightAction;
 
 @end
 
@@ -508,7 +509,23 @@ static NSDictionary * getPlaneHitResult(NSMutableArray *resultsMapped, const CGP
 }
 
 
-
+- (SCNAction *)imageHighlightAction{
+    if (_imageHighlightAction == nil) {
+        SCNAction *wait = [SCNAction waitForDuration:0.25];
+        SCNAction *fadeOpacity = [SCNAction fadeOpacityTo:0.85 duration:0.25];
+        SCNAction *fadeOpacity2 = [SCNAction fadeOpacityTo:0.15 duration:0.25];
+        SCNAction *fadeOut = [SCNAction fadeOutWithDuration:0.5];
+        SCNAction *remove = [SCNAction removeFromParentNode];
+        
+        _imageHighlightAction = [SCNAction sequence:@[wait,
+                                                      fadeOpacity,
+                                                      fadeOpacity2,
+                                                      fadeOpacity,
+                                                      fadeOut,
+                                                      remove]];
+    }
+    return _imageHighlightAction;
+}
 
 - (NSDictionary *)makeAnchorDetectionResult:(SCNNode *)node anchor:(ARAnchor *)anchor {
     NSDictionary* baseProps = @{
@@ -572,6 +589,17 @@ static NSDictionary * getPlaneHitResult(NSMutableArray *resultsMapped, const CGP
      NSLog(@"removed, number of renderer delegates %d", [self.rendererDelegates count]);
 }
 - (void)renderer:(id <SCNSceneRenderer>)renderer willUpdateNode:(SCNNode *)node forAnchor:(ARAnchor *)anchor {
+//TODO TRACK IMAGE
+    //    if (@available(iOS 11.3, *)) {
+//        if (![anchor isKindOfClass:[ARImageAnchor class]]) {
+//            return;
+//        }
+//
+//        ARImageAnchor *imageAnchor = (ARImageAnchor *)anchor;
+//
+//    } else {
+//        // Fallback on earlier versions
+//    }
 }
 
 
@@ -584,6 +612,28 @@ static NSDictionary * getPlaneHitResult(NSMutableArray *resultsMapped, const CGP
     } else if (self.onAnchorDetected) {
         self.onAnchorDetected(anchorDict);
     }
+    
+    if (![anchor isKindOfClass:[ARImageAnchor class]]) {
+        return;
+    }
+    
+    ARImageAnchor *imageAnchor = (ARImageAnchor *)anchor;
+
+    SCNPlane* plane = [SCNPlane planeWithWidth:(imageAnchor.referenceImage.physicalSize.width) height:(imageAnchor.referenceImage.physicalSize.height)];
+    
+    plane.firstMaterial.diffuse.contents = [UIColor whiteColor];
+    
+    
+    SCNNode* planeNode = [SCNNode nodeWithGeometry:plane];
+    planeNode.opacity = 0.50;
+    planeNode.rotation = SCNVector4Make(1, 0, 0, -M_PI_2);
+    
+    [ planeNode runAction:self.imageHighlightAction ];
+    [node addChildNode:planeNode];
+    
+    SCNScene * schene = [SCNScene sceneNamed:@""];
+    
+    [node addChildNode:planeNode];
     
 }
 
